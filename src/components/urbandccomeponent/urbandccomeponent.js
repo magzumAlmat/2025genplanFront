@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { YMaps, Map, Placemark, Polyline } from '@pbe/react-yandex-maps';
+import { YMaps, Map, Placemark, Polyline, Polygon } from '@pbe/react-yandex-maps';
 import {
   Button,
   FormControl,
@@ -14,13 +14,20 @@ import {
   ListItem,
   ListItemText,
   Box,
+  Paper,
+  IconButton,
+  Fade,
+  TextField,
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { PlayArrow, Stop, Delete } from '@mui/icons-material';
 
 const designCode = {
   bench: { color: '#4CAF50', size: 'medium', material: 'wood', icon: 'https://img.icons8.com/ios-filled/50/bench.png' },
   sidewalk: { color: '#B0BEC5', width: 2, material: 'concrete' },
   trashcan: { color: '#F44336', size: 'small', icon: 'https://img.icons8.com/ios-filled/50/trash.png' },
   road: { color: '#212121', width: 5, material: 'asphalt' },
+  district: { color: '#2196F3', fillOpacity: 0.3, strokeWidth: 2 }, // Новый тип для района
 };
 
 const urbanTypes = [
@@ -28,13 +35,31 @@ const urbanTypes = [
   { id: 2, name: 'sidewalk', label: 'Тротуар' },
   { id: 3, name: 'trashcan', label: 'Урна' },
   { id: 4, name: 'road', label: 'Дорога' },
+  { id: 5, name: 'district', label: 'Район' }, // Добавляем район
 ];
 
 const center = [43.238566, 76.899828]; // Центр карты (Алматы)
 
-// Функция для вычисления расстояния между двумя точками по формуле Хаверсина (в метрах)
+// Стилизованные компоненты
+const ToolPaper = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  borderRadius: '16px',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+  background: 'linear-gradient(135deg, #ffffff, #f5f7fa)',
+}));
+
+const ActionButton = styled(IconButton)(({ theme, active }) => ({
+  backgroundColor: active ? theme.palette.primary.main : theme.palette.grey[200],
+  color: active ? '#fff' : theme.palette.grey[800],
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    backgroundColor: active ? theme.palette.primary.dark : theme.palette.grey[300],
+    transform: 'scale(1.1)',
+  },
+}));
+
 const calculateDistance = (coord1, coord2) => {
-  const R = 6371e3; // Радиус Земли в метрах
+  const R = 6371e3;
   const lat1 = (coord1[0] * Math.PI) / 180;
   const lat2 = (coord2[0] * Math.PI) / 180;
   const deltaLat = ((coord2[0] - coord1[0]) * Math.PI) / 180;
@@ -44,21 +69,17 @@ const calculateDistance = (coord1, coord2) => {
     Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c; // Расстояние в метрах
-
-  return distance;
+  return R * c;
 };
 
-// Функция для вычисления общей протяженности линии
 const calculateLineLength = (coordinates) => {
   let totalLength = 0;
   for (let i = 0; i < coordinates.length - 1; i++) {
     totalLength += calculateDistance(coordinates[i], coordinates[i + 1]);
   }
-  return totalLength.toFixed(2); // Округляем до 2 знаков после запятой
+  return totalLength.toFixed(2);
 };
 
-// Функция для вычисления средней точки линии
 const calculateMidPoint = (coordinates) => {
   const totalPoints = coordinates.length;
   const midIndex = Math.floor(totalPoints / 2);
@@ -70,28 +91,39 @@ const calculateMidPoint = (coordinates) => {
   return coordinates[midIndex];
 };
 
-export default function UrbanDesignCodeComponent() {
-  const [urbanElements, setUrbanElements] = useState([]); // Список добавленных элементов
-  const [selectedUrbanType, setSelectedUrbanType] = useState(''); // Выбранный тип объекта
-  const [isDrawing, setIsDrawing] = useState(false); // Режим рисования линий
-  const [tempCoords, setTempCoords] = useState([]); // Временные координаты для линий
-  const [mapInstance, setMapInstance] = useState(null);
+const calculatePolygonCentroid = (coordinates) => {
+  let xSum = 0;
+  let ySum = 0;
+  coordinates.forEach((coord) => {
+    xSum += coord[0];
+    ySum += coord[1];
+  });
+  return [xSum / coordinates.length, ySum / coordinates.length];
+};
 
-  // Обработчик клика по карте
+export default function UrbanDesignCodeComponent() {
+  const [urbanElements, setUrbanElements] = useState([]);
+  const [selectedUrbanType, setSelectedUrbanType] = useState('');
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [tempCoords, setTempCoords] = useState([]);
+  const [mapInstance, setMapInstance] = useState(null);
+  const [isActionStarted, setIsActionStarted] = useState(false);
+  const [districtName, setDistrictName] = useState(''); // Название района
+
   const handleMapClick = (e) => {
     const coords = e.get('coords');
-    if (selectedUrbanType) {
+    if (selectedUrbanType && isDrawing) {
       if (selectedUrbanType === 'road' || selectedUrbanType === 'sidewalk') {
-        if (isDrawing) {
-          setTempCoords((prev) => [...prev, coords]);
-        }
-      } else {
-        addUrbanElement(coords);
+        setTempCoords((prev) => [...prev, coords]);
+      } else if (selectedUrbanType === 'district') {
+        setTempCoords((prev) => [...prev, coords]);
       }
+    } else if (selectedUrbanType && !isDrawing && selectedUrbanType !== 'road' && selectedUrbanType !== 'sidewalk' && selectedUrbanType !== 'district') {
+      addUrbanElement(coords);
+      setIsActionStarted(false);
     }
   };
 
-  // Добавление точечного элемента (скамейка, урна)
   const addUrbanElement = (coordinates) => {
     const newElement = {
       id: Date.now(),
@@ -102,15 +134,14 @@ export default function UrbanDesignCodeComponent() {
     setUrbanElements((prev) => [...prev, newElement]);
   };
 
-  // Начало рисования линии
   const handleStartDrawing = () => {
-    if (selectedUrbanType === 'road' || selectedUrbanType === 'sidewalk') {
+    if (selectedUrbanType === 'road' || selectedUrbanType === 'sidewalk' || selectedUrbanType === 'district') {
       setIsDrawing(true);
       setTempCoords([]);
+      setIsActionStarted(true);
     }
   };
 
-  // Завершение рисования линии
   const handleEndDrawing = () => {
     if (isDrawing && tempCoords.length >= 2) {
       const newElement = {
@@ -118,25 +149,35 @@ export default function UrbanDesignCodeComponent() {
         type: selectedUrbanType,
         coordinates: tempCoords,
         designCode: designCode[selectedUrbanType],
-        length: calculateLineLength(tempCoords), // Добавляем протяженность
+        ...(selectedUrbanType === 'district' ? { name: districtName || 'Без названия' } : { length: calculateLineLength(tempCoords) }),
       };
       setUrbanElements((prev) => [...prev, newElement]);
+      setDistrictName(''); // Очищаем поле после завершения
     }
     setIsDrawing(false);
     setTempCoords([]);
+    setIsActionStarted(false);
   };
 
-  // Сохранение данных
+  const handleCancelDrawing = () => {
+    setIsDrawing(false);
+    setTempCoords([]);
+    setIsActionStarted(false);
+    setDistrictName('');
+  };
+
   const handleSave = () => {
     const data = JSON.stringify(urbanElements, null, 2);
     console.log('Сохраненные данные:', data);
+    setIsActionStarted(false);
   };
 
-  // Обработчик изменения типа объекта
   const handleUrbanTypeChange = (e) => {
     setSelectedUrbanType(e.target.value);
     setIsDrawing(false);
     setTempCoords([]);
+    setIsActionStarted(true);
+    setDistrictName('');
   };
 
   return (
@@ -175,6 +216,31 @@ export default function UrbanDesignCodeComponent() {
                     />
                   </React.Fragment>
                 );
+              } else if (element.type === 'district') {
+                const centroid = calculatePolygonCentroid(element.coordinates);
+                return (
+                  <React.Fragment key={element.id}>
+                    <Polygon
+                      geometry={[element.coordinates]} // Первый уровень массива — внешний контур
+                      options={{
+                        fillColor: designCode[element.type].color,
+                        fillOpacity: designCode[element.type].fillOpacity,
+                        strokeColor: designCode[element.type].color,
+                        strokeWidth: designCode[element.type].strokeWidth,
+                        strokeOpacity: 0.8,
+                      }}
+                    />
+                    <Placemark
+                      geometry={centroid}
+                      properties={{
+                        iconContent: element.name,
+                      }}
+                      options={{
+                        preset: 'islands#blueStretchyIcon',
+                      }}
+                    />
+                  </React.Fragment>
+                );
               } else {
                 return (
                   <Placemark
@@ -193,7 +259,6 @@ export default function UrbanDesignCodeComponent() {
                 );
               }
             })}
-            {/* Временные точки и линия при рисовании */}
             {isDrawing &&
               tempCoords.map((coord, index) => (
                 <Placemark
@@ -204,12 +269,24 @@ export default function UrbanDesignCodeComponent() {
                   }}
                 />
               ))}
-            {isDrawing && tempCoords.length > 1 && (
+            {isDrawing && tempCoords.length > 1 && selectedUrbanType !== 'district' && (
               <Polyline
                 geometry={tempCoords}
                 options={{
                   strokeColor: designCode[selectedUrbanType].color,
                   strokeWidth: designCode[selectedUrbanType].width,
+                  strokeOpacity: 0.5,
+                }}
+              />
+            )}
+            {isDrawing && tempCoords.length > 2 && selectedUrbanType === 'district' && (
+              <Polygon
+                geometry={[tempCoords]}
+                options={{
+                  fillColor: designCode[selectedUrbanType].color,
+                  fillOpacity: designCode[selectedUrbanType].fillOpacity,
+                  strokeColor: designCode[selectedUrbanType].color,
+                  strokeWidth: designCode[selectedUrbanType].strokeWidth,
                   strokeOpacity: 0.5,
                 }}
               />
@@ -220,72 +297,117 @@ export default function UrbanDesignCodeComponent() {
 
       {/* Панель управления */}
       <Box flex={1} display="flex" flexDirection="column" gap={2}>
-        <Typography variant="h6">Добавление элементов</Typography>
-
-        <FormControl fullWidth>
-          <InputLabel>Тип объекта</InputLabel>
-          <Select value={selectedUrbanType} onChange={handleUrbanTypeChange} label="Тип объекта">
-            <MenuItem value="">Выберите тип</MenuItem>
-            {urbanTypes.map((type) => (
-              <MenuItem key={type.id} value={type.name}>
-                {type.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {selectedUrbanType && (
-          <Typography variant="body2">
-            {selectedUrbanType === 'road' || selectedUrbanType === 'sidewalk'
-              ? 'Используйте кнопки "Начало отрезка" и "Конец отрезка" для рисования'
-              : 'Кликните на карте, чтобы добавить объект'}
+        <ToolPaper elevation={3}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#333' }}>
+            Создание городской среды
           </Typography>
-        )}
 
-        {(selectedUrbanType === 'road' || selectedUrbanType === 'sidewalk') && (
-          <Box display="flex" gap={2}>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleStartDrawing}
-              disabled={isDrawing}
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel sx={{ fontWeight: 500 }}>Выберите элемент</InputLabel>
+            <Select
+              value={selectedUrbanType}
+              onChange={handleUrbanTypeChange}
+              label="Выберите элемент"
+              sx={{ borderRadius: '12px' }}
+              disabled={isActionStarted}
             >
-              Начало отрезка
-            </Button>
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={handleEndDrawing}
-              disabled={!isDrawing || tempCoords.length < 2}
-            >
-              Конец отрезка
-            </Button>
-          </Box>
-        )}
+              <MenuItem value="">Выберите тип</MenuItem>
+              {urbanTypes.map((type) => (
+                <MenuItem key={type.id} value={type.name}>
+                  {type.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
-        {/* Список добавленных элементов с протяженностью */}
+          {selectedUrbanType && (
+            <Fade in={true}>
+              <Typography variant="body2" sx={{ color: '#666', mb: 2 }}>
+                {selectedUrbanType === 'road' || selectedUrbanType === 'sidewalk'
+                  ? 'Нажмите "Старт" и кликайте по карте, затем "Стоп" для завершения линии'
+                  : selectedUrbanType === 'district'
+                  ? 'Нажмите "Старт" и кликайте по карте для области, затем "Стоп" для завершения'
+                  : 'Кликните на карте, чтобы разместить элемент'}
+              </Typography>
+            </Fade>
+          )}
+
+          {(selectedUrbanType === 'road' || selectedUrbanType === 'sidewalk' || selectedUrbanType === 'district') && (
+            <Box display="flex" gap={2} justifyContent="center" mb={2}>
+              <ActionButton
+                active={isDrawing}
+                onClick={handleStartDrawing}
+                disabled={isDrawing}
+                title="Начать рисование"
+              >
+                <PlayArrow />
+              </ActionButton>
+              <ActionButton
+                active={!isDrawing && tempCoords.length >= (selectedUrbanType === 'district' ? 3 : 2)}
+                onClick={handleEndDrawing}
+                disabled={!isDrawing || tempCoords.length < (selectedUrbanType === 'district' ? 3 : 2)}
+                title="Завершить"
+              >
+                <Stop />
+              </ActionButton>
+              <ActionButton
+                onClick={handleCancelDrawing}
+                disabled={!isDrawing}
+                title="Отменить"
+              >
+                <Delete />
+              </ActionButton>
+            </Box>
+          )}
+
+          {selectedUrbanType === 'district' && (
+            <TextField
+              label="Название района"
+              value={districtName}
+              onChange={(e) => setDistrictName(e.target.value)}
+              fullWidth
+              sx={{ mb: 2, borderRadius: '12px' }}
+              disabled={!isDrawing}
+            />
+          )}
+        </ToolPaper>
+
         {urbanElements.length > 0 && (
-          <Box>
-            <Typography variant="h6">Добавленные элементы:</Typography>
-            <List>
+          <ToolPaper elevation={3}>
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: '#333' }}>
+              Добавленные элементы
+            </Typography>
+            <List sx={{ maxHeight: '300px', overflowY: 'auto' }}>
               {urbanElements.map((el) => (
-                <ListItem key={el.id}>
+                <ListItem key={el.id} sx={{ borderBottom: '1px solid #eee' }}>
                   <ListItemText
-                    primary={urbanTypes.find((t) => t.name === el.type)?.label}
+                    primary={
+                      <Typography sx={{ fontWeight: 500 }}>
+                        {urbanTypes.find((t) => t.name === el.type)?.label}
+                        {el.name ? `: ${el.name}` : ''}
+                      </Typography>
+                    }
                     secondary={
-                      Array.isArray(el.coordinates[0])
-                        ? `Линия: ${el.coordinates.map((c) => `[${c[0]}, ${c[1]}]`).join(' -> ')} | Протяженность: ${el.length} м`
-                        : `Точка: [${el.coordinates[0]}, ${el.coordinates[1]}]`
+                      <Typography variant="body2" color="textSecondary">
+                        {Array.isArray(el.coordinates[0])
+                          ? `Фигура: ${el.coordinates.length} точек${el.length ? ` | ${el.length} м` : ''}`
+                          : `Точка: [${el.coordinates[0].toFixed(4)}, ${el.coordinates[1].toFixed(4)}]`}
+                      </Typography>
                     }
                   />
                 </ListItem>
               ))}
             </List>
-          </Box>
+          </ToolPaper>
         )}
 
-        <Button variant="contained" color="primary" onClick={handleSave}>
-          Сохранить
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleSave}
+          sx={{ borderRadius: '12px', padding: '10px 20px', fontWeight: 600 }}
+        >
+          Сохранить проект
         </Button>
       </Box>
     </Box>
