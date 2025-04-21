@@ -19,7 +19,7 @@ const initialState = {
   error:'',
   uploadProgress: 0,
 };
-const token = localStorage.getItem('token');
+// const token = localStorage.getItem('token');
 
 // export const authSlice = createSlice({
 //   name: 'auth',
@@ -399,8 +399,9 @@ export const  getBannerByCompanyIdAction= (companyId) => async(dispatch) => {
 };
 
 export const  getUserInfo=async(dispatch)=>{
-  
-  console.log('1 getUserInFo started')
+  initializeToken()
+  console.log('1 getUserInFo started token=,',token)
+
   const response = await axios.get(
     `${END_POINT}/api/auth/getAuthentificatedUserInfo`,{
       headers: {
@@ -413,6 +414,34 @@ export const  getUserInfo=async(dispatch)=>{
     dispatch(setCurrentUser(response.data));
   });
 };
+
+
+const host=process.env.NEXT_PUBLIC_HOST
+
+const initializeToken = () => {
+  let token = null;
+
+  // Проверяем localStorage
+  if (typeof window !== "undefined") {
+    token = localStorage.getItem("token");
+  }
+
+  // Если токена нет в localStorage, пытаемся получить его из URL
+  if (!token && typeof window !== "undefined") {
+    const urlParams = new URLSearchParams(window.location.search);
+    token = urlParams.get("token");
+
+    // Если токен найден в URL, сохраняем его в localStorage
+    if (token) {
+      localStorage.setItem("token", token);
+    }
+  }
+
+  return token;
+};
+
+
+const token = initializeToken();
 
 
 

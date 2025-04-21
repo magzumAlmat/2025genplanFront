@@ -135,15 +135,15 @@ export default function Layout(user) {
       <>
       <Header loggedIn={true} />
       
-      <YMaps query={{ load: "package.full" }}>
+      <YMaps query={{ load: "package.full" }} >
     <Map
       state={{
         center,
-        zoom: 14,
+        zoom: 18,
         controls: []
       }}
       width="100vw"
-      height="50vh"
+      height="80vh"
     >
      {filteredBanners.map((banner) => (
             <Placemark
@@ -195,3 +195,8 @@ export default function Layout(user) {
     </>
     )
 }
+
+
+
+
+//ymaps-2-1-79-map-copyrights-promo
