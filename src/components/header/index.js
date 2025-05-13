@@ -33,7 +33,7 @@ import { getUserInfo } from '@/store/slices/authSlice';
 import { useSelector } from 'react-redux';
 import { logout } from '@/store/slices/authSlice';
 import { useRouter } from 'next/navigation';
-
+import { logoutAction } from '@/store/slices/authSlice';
 
 export default function Header(user) {
   const CurrentUSER = useSelector((state) => state.auth.currentUser);
@@ -67,8 +67,9 @@ export default function Header(user) {
 
   const handleClick =async() => {
         
-    await dispatch(logout())
-    router.push('/login')
+    dispatch(logoutAction());
+    localStorage.removeItem("token");
+    router.push("/login");
     
 }
  
@@ -98,6 +99,7 @@ export default function Header(user) {
                    <Link href="/">Профиль</Link>
                </NavItem> */}
            </Nav>
+           
          </Container>
        </Navbar>
       }
@@ -116,7 +118,7 @@ export default function Header(user) {
                    <Link href="/urban">urban</Link>
                </NavItem>
 
-                <NavItem>
+                {/* <NavItem>
                     <Link href="/layout">Доска баннеров</Link>
                 </NavItem>
                 
@@ -126,7 +128,7 @@ export default function Header(user) {
                 </NavItem>
                 <NavItem>
                     <Link href="/addbanner">Создать баннер</Link>
-                </NavItem>
+                </NavItem> */}
             </Nav>
           </Container>
         <Container className='d-flex justify-content-end'>
@@ -147,20 +149,77 @@ export default function Header(user) {
 {user.loggedIn=='inspector'  &&
 
 <Navbar color="light" light expand="md">
-<NavbarBrand href="/inspector">E-ZHARNAMA</NavbarBrand>
+<NavbarBrand href="/inspector">INSPECTOR</NavbarBrand>
     <Container>
      
       <Nav className="ml-auto" navbar>
         <NavItem>
               <Link href="/inspector">Главная</Link>
           </NavItem>
-          {/* <NavItem>
-              <Link href="/addcompany">Все компании</Link>
+          <NavItem>
+                    <Link href="/layout">Доска баннеров</Link>
+                </NavItem>
+                
+
+                <NavItem>
+                    <Link href="/addcompany">Создать компанию</Link>
+                </NavItem>
+                <NavItem>
+                    <Link href="/addbanner">Создать баннер</Link>
+                </NavItem>
+
+        
+        <div className='me-5'>
+            <button onClick={() => {handleClick()}} className='btn btn-primary'>logout</button>
+        </div>
+      </Nav>
+      
+    </Container>
+  <Container className='d-flex justify-content-end'>
+    <Nav navbar>
+      <Link href="/customerprofile">
+        <Image src={imageicon} alt="иконка профиля"/>
+      </Link>
+    </Nav>
+
+  </Container>
+  </Navbar>
+}
+
+
+
+
+
+
+
+{user.loggedIn=='admin'  &&
+
+<Navbar color="light" light expand="md">
+<NavbarBrand href="/inspector">ADMIN</NavbarBrand>
+    <Container>
+     
+      <Nav className="ml-auto" navbar>
+        <NavItem>
+              <Link href="/inspector">Главная</Link>
           </NavItem>
           <NavItem>
-              <Link href="/addbanner">Ченибудь еще</Link>
-          </NavItem> */}
+                    <Link href="/layout">Доска баннеров</Link>
+                </NavItem>
+                
+
+                <NavItem>
+                    <Link href="/addcompany">Создать компанию</Link>
+                </NavItem>
+                <NavItem>
+                    <Link href="/addbanner">Создать баннер</Link>
+                </NavItem>
+
+        
+        <div className='me-5'>
+            <button onClick={() => {handleClick()}} className='btn btn-primary'>logout</button>
+        </div>
       </Nav>
+      
     </Container>
   <Container className='d-flex justify-content-end'>
     <Nav navbar>

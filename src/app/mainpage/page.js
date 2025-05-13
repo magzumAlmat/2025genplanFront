@@ -20,7 +20,8 @@ export default function MainPage() {
         <Header loggedIn={true}/>
         <br />
         <h1>Welcome</h1>
-        <h1>
+        
+        {/* <h1>
                     Заполните компанию
                     <Link href="/addcompany">
                     <button className="btn btn-primary">
@@ -44,7 +45,7 @@ export default function MainPage() {
 <br />
 <br />
 
-
+ */}
 
 
     </main>

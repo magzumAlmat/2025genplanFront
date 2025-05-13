@@ -13,7 +13,7 @@ import { addCompanyAction } from "@/store/slices/authSlice";
 import ReviseDashboard from "../reviseDashboard";
 import { Button } from "reactstrap";
 import { useRouter } from "next/navigation";
-import { Map,Marker } from "@2gis/mapgl/types";
+// import { Map,Marker } from "@2gis/mapgl/types";
 export default function InspectorDashboard() {
     const router=useRouter()
   const host = "http://localhost:8000";

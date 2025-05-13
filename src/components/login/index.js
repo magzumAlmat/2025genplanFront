@@ -18,6 +18,7 @@ import {
 } from 'reactstrap';
 import { loginAction } from '@/store/slices/authSlice';
 export default function Login() {
+
     const dispatch = useDispatch()
     const [isWaiting, setIsWaiting] = useState(false);
     const router = useRouter();
@@ -60,27 +61,21 @@ export default function Login() {
 
     const handleInputChange = (event) => {
         setCode(event.target.value);
-
         if (!isWaiting && isWrongCode) {
             setInputEnabled(true); // Разрешить ввод после ожидания 10 секунд
             setIsWrongCode(false);
         }
     };
 
-    const handleCodeSubmit = () => {
 
+    const handleCodeSubmit = () => {
         const lastFour = someVar.slice(-4);
         console.log('code=', code, 'somevar', lastFour)
-
 
         if (code == lastFour) {
             setInputEnabled(true); // Разрешить ввод
             dispatch(verifyCodeAction(email, lastFour))
-           
             router.push('/mainpage');
-           
-           
-
         } else {
             setIsWrongCode(true);
             setInputEnabled(false);
@@ -102,21 +97,19 @@ export default function Login() {
        
     }
 
+
     const loginInspectorWithEmailAndPassword=async()=>{
         await dispatch(loginInspectorAction(email,password))    
         // window.location.reload();    
         router.push('/inspector');
-       
     }
+
+
 
     const handleClickEnterWithLoginPassword=async()=>{
         setStep(3);
         // if (validateEmail(email)) {
         //     setStep(3);
-            
-
-          
-
         // } else {
         //     alert('Пожалуйста, введите действительный адрес электронной почты.');
         // }
@@ -125,11 +118,7 @@ export default function Login() {
 
     const handleInspectorEnterWithEmailAndPassword=async()=>{
         // if (validateEmail(email)) {
-            setStep(4);
-            
-
-          
-
+        setStep(4);
         // } else {
         //     alert('Пожалуйста, введите действительный адрес электронной почты.');
         // }
@@ -137,21 +126,20 @@ export default function Login() {
     }
 
     const handleClick = async () => {
-
         if (validateEmail(email)) {
             setStep(2);
             await dispatch(sendCodeToEmailAction(email))
-
         } else {
             alert('Пожалуйста, введите действительный адрес электронной почты.');
         }
-
-
     }
+
+
 
     const handleChangeEmail = (event) => {
         setEmail(event.target.value);
     };
+
 
     const handleChangePassword = (event) => {
         setPassword(event.target.value);
@@ -159,6 +147,18 @@ export default function Login() {
     return (
         <>
 
+<h4>
+
+       
+</h4>
+
+
+<ul>
+        <li>admin@example.com   пароль 1    Роль для проверки инспекторов</li>
+        <li>client@example.com  пароль 1</li>
+        <li>customer@example.com  пароль 1</li>
+        <li>inspector@example.com  пароль 1</li>
+</ul>
 {  step === 1 &&
             <Row>
                 <Col className="" sm="4" xs="6"></Col>
@@ -185,7 +185,7 @@ export default function Login() {
                                 <Button onClick={handleClickEnterWithLoginPassword} color="primary">Вход
 
                                 </Button>
-                                <Button onClick={handleInspectorEnterWithEmailAndPassword} color="primary">Вход Инспектор
+                                <Button onClick={handleInspectorEnterWithEmailAndPassword} color="primary">Вход Инспектор|Админ
 
                                 </Button>
                             </Col>
